@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SAGUEL</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ══════════════════════════════════════════════
+   🔴 CONFIGURÁ TU PROYECTO FIREBASE AQUÍ ABAJO
+   1. Andá a https://console.firebase.google.com
+   2. Creá un proyecto → Firestore Database → modo test (para empezar)
+   3. Configuración del proyecto → Agregar app web → copiá firebaseConfig
+   ══════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "TU_API_KEY",
+  authDomain:        "TU_PROYECTO.firebaseapp.com",
+  projectId:         "TU_PROYECTO",
+  storageBucket:     "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId:             "TU_APP_ID"
+};
+
+const STOCK_INICIAL = [
+  {id:1, nom:'TASKI profi 5l',cat:'Limpieza',qty:5,min:2,uni:'unidades'},
+  {id:2, nom:'CIF limpiador neutro pisos 5l',cat:'Limpieza',qty:5,min:3,uni:'unidades'},
+  {id:3, nom:'CIF vidrios y multiuso 5l',cat:'Limpieza',qty:1,min:1,uni:'unidades'},
+  {id:4, nom:'CIF cremoso original 750gr',cat:'Limpieza',qty:6,min:3,uni:'unidades'},
+  {id:5, nom:'CIF cuaternario 5l',cat:'Limpieza',qty:1,min:1,uni:'unidades'},
+  {id:6, nom:'Lavandina concentrada 5l',cat:'Limpieza',qty:6,min:3,uni:'unidades'},
+  {id:7, nom:'LYSOFORM aerosol 360cc',cat:'Limpieza',qty:8,min:4,uni:'unidades'},
+  {id:8, nom:'BLEM aerosol 420cc',cat:'Limpieza',qty:6,min:3,uni:'unidades'},
+  {id:9, nom:'RAID 360cc',cat:'Limpieza',qty:6,min:3,uni:'unidades'},
+  {id:10,nom:'DRASTIK 500ml',cat:'Limpieza',qty:6,min:3,uni:'unidades'},
+  {id:11,nom:'GLADE aerosol 360cc',cat:'Limpieza',qty:12,min:6,uni:'unidades'},
+  {id:12,nom:'ALA polvo multipropósito 5kg',cat:'Limpieza',qty:5,min:2,uni:'unidades'},
+  {id:13,nom:'Jabón líquido',cat:'Higiene',qty:0,min:2,uni:'litros'},
+  {id:14,nom:'Papel higiénico',cat:'Higiene',qty:0,min:5,uni:'paquetes'},
+  {id:15,nom:'Papel de mano (toallitas)',cat:'Higiene',qty:0,min:3,uni:'paquetes'},
+  {id:16,nom:'Secador tork goma 75cm',cat:'Herramientas',qty:4,min:2,uni:'unidades'},
+  {id:17,nom:'Secavidrio viceversa 25cm',cat:'Herramientas',qty:2,min:1,uni:'unidades'},
+  {id:18,nom:'Cepillo barrendero PVC',cat:'Herramientas',qty:4,min:2,uni:'unidades'},
+  {id:19,nom:'Cepillo andén 60cm',cat:'Herramientas',qty:6,min:2,uni:'unidades'},
+  {id:20,nom:'Escoba America PVC',cat:'Herramientas',qty:6,min:3,uni:'unidades'},
+  {id:21,nom:'Cepillo limpiatecho triángulo',cat:'Herramientas',qty:1,min:1,uni:'unidades'},
+  {id:22,nom:'Pala FIO de pie con cabo',cat:'Herramientas',qty:6,min:2,uni:'unidades'},
+  {id:23,nom:'Pala lobby mango aluminio',cat:'Herramientas',qty:4,min:2,uni:'unidades'},
+  {id:24,nom:'Cabo aluminio 1.4m',cat:'Herramientas',qty:4,min:2,uni:'unidades'},
+  {id:25,nom:'Cabo de madera 1.5m',cat:'Herramientas',qty:10,min:4,uni:'unidades'},
+  {id:26,nom:'Asta telescópica 3x2m',cat:'Herramientas',qty:1,min:1,uni:'unidades'},
+  {id:27,nom:'Balde manija alambre 17l',cat:'Herramientas',qty:2,min:2,uni:'unidades'},
+  {id:28,nom:'Trapo de piso',cat:'Herramientas',qty:0,min:4,uni:'unidades'},
+  {id:29,nom:'Carro milenium negro',cat:'Maquinaria',qty:2,min:1,uni:'unidades'},
+  {id:30,nom:'Bolsas negras 45x60cm (x30u)',cat:'Descartables',qty:20,min:5,uni:'paquetes'},
+  {id:31,nom:'Bolsas negras 60x90cm (x10u)',cat:'Descartables',qty:20,min:5,uni:'paquetes'},
+  {id:32,nom:'Bolsas negras 85x110cm (x10u)',cat:'Descartables',qty:20,min:5,uni:'paquetes'},
+  {id:33,nom:'Bolsas negras 100x120cm (x10u)',cat:'Descartables',qty:20,min:5,uni:'paquetes'},
+  {id:34,nom:'Esponja salvauñas',cat:'Descartables',qty:6,min:3,uni:'unidades'},
+  {id:35,nom:'Paño absorbente 38x40cm (x3u)',cat:'Descartables',qty:2,min:2,uni:'paquetes'},
+  {id:36,nom:'Franela LA PONDEROSA 35x45cm',cat:'Descartables',qty:6,min:3,uni:'unidades'},
+  {id:37,nom:'Guante afelpado talle M',cat:'Descartables',qty:6,min:3,uni:'pares'},
+  {id:38,nom:'Válvulas trigger premium',cat:'Descartables',qty:4,min:2,uni:'unidades'},
+  {id:39,nom:'Botella reforzada 1l',cat:'Descartables',qty:4,min:2,uni:'unidades'},
+];
+
+let app, db;
+try {
+  app = initializeApp(firebaseConfig);
+  db  = getFirestore(app);
+} catch(e) {}
+
+window._initFirebase = async function() {
+  if (!db) { _fallbackLocal(); return; }
+  try {
+    const stockSnap = await getDocs(collection(db, 'stock'));
+    if (stockSnap.empty) {
+      const batch = writeBatch(db);
+      STOCK_INICIAL.forEach(s => batch.set(doc(db,'stock',String(s.id)), s));
+      await batch.commit();
+    }
+    onSnapshot(collection(db,'stock'), snap => {
+      window.stock = [];
+      snap.forEach(d => window.stock.push(d.data()));
+      window.stock.sort((a,b)=>a.id-b.id);
+      window.nextS = Math.max(...window.stock.map(s=>s.id), 39)+1;
+      if(window._appReady){ renderInv(); renderComprar(); renderStock(); updBadge(); }
+    });
+    onSnapshot(collection(db,'pedidos'), snap => {
+      window.pedidos = [];
+      snap.forEach(d => window.pedidos.push(d.data()));
+      window.pedidos.sort((a,b)=>b.id-a.id);
+      window.nextP = Math.max(...window.pedidos.map(p=>p.id),0)+1;
+      if(window._appReady){ renderComprar(); renderHist(); updBadge(); }
+    });
+    setDbStatus('🟢','Firebase conectado — datos en tiempo real');
+  } catch(e) {
+    console.warn('Firebase:', e.message);
+    _fallbackLocal();
+  }
+  window._appReady = true;
+};
+
+function _fallbackLocal(){
+  window.stock = STOCK_INICIAL.map(s=>({...s}));
+  window.nextS = 40; window.pedidos = []; window.nextP = 1;
+  window._useLocal = true;
+  setDbStatus('🟡','Sin Firebase — datos solo en esta sesión');
+  window._appReady = true;
+}
+
+window._saveStock     = async(item)=>{ if(!db||window._useLocal)return; await setDoc(doc(db,'stock',String(item.id)),item); };
+window._savePedido    = async(p)=>{ if(!db||window._useLocal)return; await setDoc(doc(db,'pedidos',String(p.id)),p); };
+window._updatePedido  = async(id,data)=>{ if(!db||window._useLocal)return; await updateDoc(doc(db,'pedidos',String(id)),data); };
+window._deletePedido  = async(id)=>{ if(!db||window._useLocal)return; await deleteDoc(doc(db,'pedidos',String(id))); };
+window._updateStockQty= async(id,qty)=>{ if(!db||window._useLocal)return; await updateDoc(doc(db,'stock',String(id)),{qty}); };
+</script>
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F5F4F0;--white:#FFFFFF;--ink:#111111;--muted:#999999;--border:#E8E6E0;
+  --red:#D03030;--amber:#B87000;--green:#1A6E35;
+  --red-bg:#FDF1F1;--amber-bg:#FDF8EE;--green-bg:#F0F9F3;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+button,input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#ddd}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:999;font-size:14px;color:var(--muted)}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* INICIO */
+#inicio{display:none;min-height:100vh;background:var(--ink);flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:48px}
+.logo-area{text-align:center}
+.logo-area h1{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.logo-area p{font-size:13px;color:#444;margin-top:4px}
+.role-cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;width:100%;max-width:480px}
+.role-card{flex:1;min-width:200px;background:#1A1A1A;border:1px solid #2A2A2A;border-radius:16px;padding:28px 22px;cursor:pointer;text-align:left;transition:border-color .15s,transform .12s;appearance:none}
+.role-card:hover{border-color:#555;transform:translateY(-2px)}
+.role-emoji{font-size:32px;display:block;margin-bottom:14px}
+.role-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:5px}
+.role-desc{font-size:13px;color:#555;line-height:1.5;margin-bottom:20px}
+.role-cta{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;color:#888}
+.role-card:hover .role-cta{color:#fff}
+
+/* APP */
+.app{display:none;min-height:100vh;background:var(--bg);flex-direction:column}
+.app.on{display:flex}
+.hdr{background:var(--white);border-bottom:1px solid var(--border);height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.hdr-back{background:none;border:none;cursor:pointer;color:var(--muted);padding:6px;border-radius:7px;display:flex;align-items:center;transition:.12s}
+.hdr-back:hover{background:var(--bg);color:var(--ink)}
+.hdr-title{font-size:15px;font-weight:700;color:var(--ink);flex:1}
+.hdr-badge{background:var(--red);color:#fff;border-radius:20px;font-size:12px;font-weight:700;padding:2px 8px}
+#db-status{font-size:13px;cursor:help}
+
+.tabs{background:var(--white);border-bottom:1px solid var(--border);display:flex;flex-shrink:0;overflow-x:auto}
+.tab{flex:1;min-width:90px;padding:14px 10px;font-size:14px;font-weight:500;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:.12s;white-space:nowrap;text-align:center}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:700}
+
+.content{flex:1;max-width:680px;margin:0 auto;width:100%;padding:24px 20px}
+.screen{display:none}.screen.on{display:block}
+
+.page-title{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:20px}
+.section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;margin-top:24px}
+.section-label:first-of-type{margin-top:0}
+
+.aviso{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:10px;font-size:14px;font-weight:500;margin-bottom:12px;border:1px solid}
+.av-r{background:var(--red-bg);border-color:#EFBDBD;color:var(--red)}
+.av-a{background:var(--amber-bg);border-color:#E8C97A;color:var(--amber)}
+.av-v{background:var(--green-bg);border-color:#92CFA8;color:var(--green)}
+.aviso strong{font-weight:700}
+
+.inv-item{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:12px;margin-bottom:4px;transition:border-color .12s}
+.inv-item:hover{border-color:#CCC}
+.inv-left{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.inv-nombre{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-meta{font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.inv-status{font-size:11px;font-weight:700;white-space:nowrap;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.st-ok{background:var(--green-bg);color:var(--green)}
+.st-low{background:var(--amber-bg);color:var(--amber)}
+.st-out{background:var(--red-bg);color:var(--red)}
+.inv-controls{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.ctrl-btn{width:24px;height:24px;border-radius:5px;background:var(--bg);border:1px solid var(--border);color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;flex-shrink:0}
+.ctrl-btn:hover{background:var(--border)}
+.ctrl-num{font-size:13px;font-weight:800;color:var(--ink);min-width:26px;text-align:center;cursor:pointer}
+.ctrl-num:hover{color:var(--red)}
+
+.cat-header{display:flex;align-items:center;gap:6px;padding:6px 0 5px;margin-top:10px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.cat-header:first-child{margin-top:0}
+.cat-emoji{font-size:16px}
+.cat-name{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:9px;font-size:15px;color:var(--ink);background:var(--white);outline:none;transition:border .12s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ink)}
+.field textarea{min-height:72px;resize:vertical}
+.field-err{font-size:12px;color:var(--red);font-weight:600;margin-top:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 20px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.12s;line-height:1;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.b-ink{background:var(--ink);color:#fff}.b-ink:hover{background:#222}
+.b-green{background:var(--green);color:#fff}.b-green:hover{background:#21894A}
+.b-ghost{background:var(--bg);color:#555;border:1px solid var(--border)}.b-ghost:hover{background:var(--border)}
+.b-lg{font-size:15px;padding:13px 22px}
+.b-sm{font-size:12px;padding:6px 12px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+
+.tag{display:inline-block;padding:3px 9px;border-radius:5px;font-size:12px;font-weight:600;border:1px solid}
+.tag-pend{background:#FFF8E6;color:#7A5000;border-color:#E0C060}
+.tag-apro{background:var(--green-bg);color:var(--green);border-color:#92CFA8}
+.tag-rech{background:var(--red-bg);color:var(--red);border-color:#EFBDBD}
+.tag-norm{background:#F0F4FB;color:#2A4A8A;border-color:#AABFDF}
+.tag-alta{background:#FFF8E6;color:#7A5000;border-color:#E0C060}
+.tag-crit{background:var(--red-bg);color:var(--red);border-color:#EFBDBD}
+
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead tr{background:var(--bg)}
+th{padding:10px 13px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 13px;border-bottom:1px solid var(--bg);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#FAFAF8}
+.clic{cursor:pointer}
+
+.ped-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px}
+.ped-nombre{font-size:16px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ped-dato{font-size:13px;color:#555;line-height:1.8;margin-bottom:12px}
+.ped-dato strong{color:var(--ink);font-weight:600}
+
+/* REPORTE */
+.rep-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.rep-kpi{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.rep-kpi-n{font-size:26px;font-weight:800;color:var(--ink)}
+.rep-kpi-n.danger{color:var(--red)}
+.rep-kpi-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.rep-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+
+.empty{text-align:center;padding:44px 20px;color:#CCC;font-size:14px}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center;padding:20px}
+.overlay.on{display:flex}
+.modal{background:var(--white);border-radius:14px;padding:22px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+.modal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-x{background:var(--bg);border:none;border-radius:7px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.det-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--bg)}
+.det-row:last-of-type{border-bottom:none}
+.det-l{font-size:13px;color:var(--muted)}
+.det-v{font-size:14px;font-weight:600;text-align:right;max-width:60%}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <span>Conectando…</span>
+</div>
+
+<div id="inicio">
+  <div class="logo-area">
+    <h1>Grupo SAGUEL</h1>
+    <p>Styropek · General Lagos</p>
+  </div>
+  <div class="role-cards">
+    <button class="role-card" onclick="entrar('op')">
+      <span class="role-emoji">👷</span>
+      <div class="role-title">Operario</div>
+      <div class="role-desc">Actualizá el stock y registrá pedidos</div>
+      <div class="role-cta">Entrar <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </button>
+    <button class="role-card" onclick="entrar('em')">
+      <span class="role-emoji">👔</span>
+      <div class="role-title">Empleador</div>
+      <div class="role-desc">Mirá qué falta y el reporte</div>
+      <div class="role-cta">Entrar <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </button>
+  </div>
+</div>
+
+<!-- APP OPERARIO -->
+<div id="app-op" class="app">
+  <div class="hdr">
+    <button class="hdr-back" onclick="volver()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <span class="hdr-title">👷 Operario</span>
+    <span id="db-status" title="Estado Firebase">⏳</span>
+  </div>
+  <div class="tabs">
+    <button class="tab on" onclick="opTab('inv',this)">Inventario</button>
+    <button class="tab" onclick="opTab('pedir',this)">Pedir insumo</button>
+    <button class="tab" onclick="opTab('hist',this)">Mis pedidos</button>
+  </div>
+  <div class="content">
+    <div id="op-inv" class="screen on">
+      <div id="op-inv-alert"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="page-title" style="margin-bottom:0">Inventario</div>
+        <button class="btn b-ink b-sm" onclick="abrirModal('m-add')">+ Agregar</button>
+      </div>
+      <div id="op-inv-body"></div>
+    </div>
+    <div id="op-pedir" class="screen">
+      <div class="page-title">Pedir insumo</div>
+      <div id="op-pedir-ok"></div>
+      <div class="row2">
+        <div class="field">
+          <label>Insumo</label>
+          <select id="f-ins" onchange="chkOtro()"><option value="">— Elegí —</option></select>
+          <div id="f-ins-e" class="field-err"></div>
+        </div>
+        <div class="field" id="f-otro-w" style="display:none">
+          <label>¿Cuál?</label>
+          <input type="text" id="f-otro" placeholder="Nombre..."/>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Cantidad</label>
+          <input type="number" id="f-cant" min="1" value="1"/>
+          <div id="f-cant-e" class="field-err"></div>
+        </div>
+        <div class="field">
+          <label>Unidad</label>
+          <select id="f-uni"><option>unidades</option><option>litros</option><option>kg</option><option>cajas</option><option>bolsas</option><option>pares</option><option>paquetes</option><option>rollos</option></select>
+        </div>
+        <div class="field">
+          <label>Urgencia</label>
+          <select id="f-urg">
+            <option value="normal">Sin apuro</option>
+            <option value="alta">Pronto</option>
+            <option value="critica">Ya mismo</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="max-width:220px">
+        <label>¿Para cuándo?</label>
+        <input type="date" id="f-fecha"/>
+        <div id="f-fecha-e" class="field-err"></div>
+      </div>
+      <div class="field">
+        <label>Nota <span style="font-weight:400;color:#CCC">(opcional)</span></label>
+        <textarea id="f-obs" placeholder="Área, turno, detalle..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn b-ink b-lg" onclick="enviarPedido()">Registrar pedido</button>
+        <button class="btn b-ghost" onclick="limpiarForm()">Limpiar</button>
+      </div>
+    </div>
+    <div id="op-hist" class="screen">
+      <div class="page-title">Mis pedidos</div>
+      <div class="row3" style="margin-bottom:14px">
+        <div class="field" style="margin:0"><label style="font-size:12px">Buscar</label><input type="text" id="h-bq" placeholder="Insumo..." oninput="renderHist()"/></div>
+        <div class="field" style="margin:0"><label style="font-size:12px">Estado</label><select id="h-est" onchange="renderHist()"><option value="">Todos</option><option>Pendiente</option><option>Aprobado</option><option>Rechazado</option></select></div>
+        <div class="field" style="margin:0"><label style="font-size:12px">Urgencia</label><select id="h-urg" onchange="renderHist()"><option value="">Todas</option><option value="normal">Normal</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></div>
+      </div>
+      <div class="tbl-wrap">
+        <div id="op-hist-body"></div>
+        <div id="op-hist-foot" style="font-size:12px;color:#CCC;padding:9px 13px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP EMPLEADOR -->
+<div id="app-em" class="app">
+  <div class="hdr">
+    <button class="hdr-back" onclick="volver()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <span class="hdr-title">👔 Empleador</span>
+    <span id="em-badge" class="hdr-badge" style="display:none"></span>
+  </div>
+  <div class="tabs">
+    <button class="tab on" onclick="emTab('comprar',this)">Qué comprar</button>
+    <button class="tab" onclick="emTab('stock',this)">Stock</button>
+    <button class="tab" onclick="emTab('reporte',this)">Reporte</button>
+  </div>
+  <div class="content">
+
+    <div id="em-comprar" class="screen on">
+      <div class="page-title">Qué comprar</div>
+      <div id="em-comprar-body"></div>
+    </div>
+
+    <div id="em-stock" class="screen">
+      <div class="page-title">Stock actual</div>
+      <div id="em-stock-alert"></div>
+      <div id="em-stock-body"></div>
+    </div>
+
+    <div id="em-reporte" class="screen">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div class="page-title" style="margin-bottom:0">Reporte</div>
+        <button class="btn b-ink b-sm" onclick="exportarPDF()">⬇ Descargar PDF</button>
+      </div>
+      <div class="rep-sub" id="rep-sub"></div>
+      <div id="em-rep-body"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL AGREGAR -->
+<div class="overlay" id="m-add" onclick="cerrarModal(event,'m-add')">
+  <div class="modal">
+    <div class="modal-top">
+      <span class="modal-title">Agregar insumo</span>
+      <button class="modal-x" onclick="cerrarModal(null,'m-add')">✕</button>
+    </div>
+    <div class="field"><label>Nombre</label><input type="text" id="a-nom" placeholder="Ej: Lavandina 5l"/></div>
+    <div class="field"><label>Categoría</label>
+      <select id="a-cat">
+        <option value="Limpieza">🧴 Limpieza</option>
+        <option value="Herramientas">🧹 Herramientas</option>
+        <option value="Descartables">🗑 Descartables</option>
+        <option value="Higiene">🧻 Higiene y papel</option>
+        <option value="Maquinaria">🛒 Maquinaria</option>
+        <option value="Otro">📦 Otro</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Cantidad actual</label><input type="number" id="a-cant" min="0" value="0"/></div>
+      <div class="field"><label>Unidad</label><select id="a-uni"><option>unidades</option><option>litros</option><option>kg</option><option>cajas</option><option>bolsas</option><option>pares</option><option>paquetes</option><option>rollos</option></select></div>
+    </div>
+    <div class="field"><label>Mínimo de stock</label><input type="number" id="a-min" min="0" value="2"/></div>
+    <button class="btn b-ink b-lg" style="width:100%" onclick="guardarInsumo()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="overlay" id="m-det" onclick="cerrarModal(event,'m-det')">
+  <div class="modal">
+    <div class="modal-top">
+      <span class="modal-title" id="det-tit">Pedido</span>
+      <button class="modal-x" onclick="cerrarModal(null,'m-det')">✕</button>
+    </div>
+    <div id="det-body"></div>
+  </div>
+</div>
+
+<script>
+var CATS={Limpieza:{e:'🧴',n:'Limpieza'},Herramientas:{e:'🧹',n:'Herramientas'},Descartables:{e:'🗑',n:'Descartables'},Higiene:{e:'🧻',n:'Higiene y papel'},Maquinaria:{e:'🛒',n:'Maquinaria'},Otro:{e:'📦',n:'Otro'}};
+window.stock=[];window.pedidos=[];window.nextP=1;window.nextS=40;window._useLocal=false;window._appReady=false;
+
+function g(id){return document.getElementById(id);}
+function hoy(){return new Date().toISOString().split('T')[0];}
+function fd(d){if(!d)return'—';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+function setDbStatus(emoji,msg){var el=g('db-status');if(el){el.textContent=emoji;el.title=msg;}}
+function stInfo(s){if(s.qty===0)return{cls:'st-out',txt:'Sin stock'};if(s.qty<=s.min)return{cls:'st-out',txt:'Bajo mínimo'};if(s.qty<=s.min*1.5)return{cls:'st-low',txt:'Poco'};return{cls:'st-ok',txt:'OK'};}
+function av(tipo,txt){return '<div class="aviso av-'+tipo+'">'+(tipo==='r'?'⚠':tipo==='a'?'!':'✓')+' <span>'+txt+'</span></div>';}
+function tag(t){var m={Pendiente:'tag-pend Pendiente',Aprobado:'tag-apro Aprobado',Rechazado:'tag-rech Rechazado',normal:'tag-norm Normal',alta:'tag-alta Alta',critica:'tag-crit Crítica'};var s=(m[t]||'tag-norm Normal').split(' ');return '<span class="tag '+s[0]+'">'+s[1]+'</span>';}
+function vacio(txt){return '<div class="empty">'+txt+'</div>';}
+
+window.addEventListener('load',function(){
+  window._initFirebase().then(function(){
+    g('loading-screen').style.display='none';
+    g('inicio').style.display='flex';
+  });
+});
+
+function entrar(rol){
+  g('inicio').style.display='none';
+  if(rol==='op'){g('app-op').classList.add('on');renderInv();fillSelect();}
+  if(rol==='em'){g('app-em').classList.add('on');renderComprar();updBadge();}
+}
+function volver(){g('app-op').classList.remove('on');g('app-em').classList.remove('on');g('inicio').style.display='flex';}
+function opTab(id,btn){
+  document.querySelectorAll('#app-op .screen').forEach(function(s){s.classList.remove('on');});
+  document.querySelectorAll('#app-op .tab').forEach(function(t){t.classList.remove('on');});
+  g('op-'+id).classList.add('on');btn.classList.add('on');
+  if(id==='inv')renderInv();if(id==='hist')renderHist();
+}
+function emTab(id,btn){
+  document.querySelectorAll('#app-em .screen').forEach(function(s){s.classList.remove('on');});
+  document.querySelectorAll('#app-em .tab').forEach(function(t){t.classList.remove('on');});
+  g('em-'+id).classList.add('on');btn.classList.add('on');
+  if(id==='comprar')renderComprar();if(id==='stock')renderStock();if(id==='reporte')renderReporte();
+}
+function updBadge(){
+  var n=window.stock.filter(function(s){return s.qty<=s.min;}).length+window.pedidos.filter(function(p){return p.estado==='Pendiente';}).length;
+  var b=g('em-badge');if(b){b.textContent=n;b.style.display=n?'inline-block':'none';}
+}
+
+/* ── INV ── */
+function renderInv(){
+  var bajo=window.stock.filter(function(s){return s.qty<=s.min;});
+  g('op-inv-alert').innerHTML=bajo.length?av('r','<strong>'+bajo.length+' insumo(s) bajo el mínimo</strong>'):av('v','Todo el inventario está en orden');
+  var grupos={};window.stock.forEach(function(s){if(!grupos[s.cat])grupos[s.cat]=[];grupos[s.cat].push(s);});
+  var html='';
+  Object.keys(CATS).forEach(function(cat){
+    var items=grupos[cat];if(!items||!items.length)return;
+    html+='<div class="cat-header"><span class="cat-emoji">'+CATS[cat].e+'</span><span class="cat-name">'+CATS[cat].n+'</span></div>';
+    items.forEach(function(s){
+      var si=stInfo(s);
+      html+='<div class="inv-item"><div class="inv-left"><div class="inv-nombre">'+s.nom+'</div><div class="inv-meta">mín: '+s.min+' '+s.uni+'</div></div>'+
+        '<span class="inv-status '+si.cls+'">'+si.txt+'</span>'+
+        '<div class="inv-controls"><button class="ctrl-btn" onclick="adj('+s.id+',-1)">−</button>'+
+        '<span class="ctrl-num" id="qn-'+s.id+'" onclick="editN('+s.id+')" title="Tocá para editar">'+s.qty+'</span>'+
+        '<button class="ctrl-btn" onclick="adj('+s.id+',1)">+</button></div></div>';
+    });
+  });
+  g('op-inv-body').innerHTML=html;
+}
+function adj(id,d){var s=window.stock.find(function(x){return x.id===id;});if(!s)return;s.qty=Math.max(0,s.qty+d);window._updateStockQty(id,s.qty);renderInv();updBadge();}
+function editN(id){
+  var s=window.stock.find(function(x){return x.id===id;});var el=g('qn-'+id);if(!s||!el)return;
+  var inp=document.createElement('input');inp.type='number';inp.value=s.qty;
+  inp.style.cssText='width:46px;text-align:center;font-size:13px;font-weight:800;padding:2px 4px;border:2px solid var(--ink);border-radius:5px;outline:none';
+  el.parentNode.replaceChild(inp,el);inp.focus();inp.select();
+  function ok(){s.qty=Math.max(0,parseInt(inp.value)||0);window._updateStockQty(id,s.qty);renderInv();updBadge();}
+  inp.addEventListener('blur',ok);inp.addEventListener('keydown',function(e){if(e.key==='Enter')ok();});
+}
+function fillSelect(){
+  var sel=g('f-ins');while(sel.options.length>1)sel.remove(1);
+  var grupos={};window.stock.forEach(function(s){if(!grupos[s.cat])grupos[s.cat]=[];grupos[s.cat].push(s);});
+  Object.keys(CATS).forEach(function(cat){
+    if(!grupos[cat])return;
+    var og=document.createElement('optgroup');og.label=CATS[cat].e+' '+CATS[cat].n;
+    grupos[cat].forEach(function(s){var op=document.createElement('option');op.value=s.nom;op.textContent=s.nom;og.appendChild(op);});
+    sel.appendChild(og);
+  });
+  var op=document.createElement('option');op.value='Otro';op.textContent='Otro — escribir abajo';sel.appendChild(op);
+}
+function guardarInsumo(){
+  var n=g('a-nom').value.trim();if(!n){alert('Escribí el nombre');return;}
+  var item={id:window.nextS++,nom:n,cat:g('a-cat').value,qty:Math.max(0,parseInt(g('a-cant').value)||0),min:Math.max(0,parseInt(g('a-min').value)||2),uni:g('a-uni').value};
+  window.stock.push(item);window._saveStock(item);
+  g('a-nom').value='';g('a-cant').value=0;g('a-min').value=2;
+  cerrarModal(null,'m-add');renderInv();updBadge();fillSelect();
+}
+
+/* ── PEDIR ── */
+function chkOtro(){g('f-otro-w').style.display=g('f-ins').value==='Otro'?'block':'none';}
+function limpiarForm(){
+  g('f-ins').value='';g('f-otro').value='';g('f-cant').value=1;g('f-urg').value='normal';g('f-fecha').value='';g('f-obs').value='';
+  g('f-otro-w').style.display='none';['f-ins-e','f-cant-e','f-fecha-e'].forEach(function(id){g(id).textContent='';});
+}
+function enviarPedido(){
+  var ins=g('f-ins').value,otro=g('f-otro').value.trim(),nom=ins==='Otro'?otro:ins;
+  var cant=parseInt(g('f-cant').value),fecha=g('f-fecha').value,ok=true;
+  g('f-ins-e').textContent=!nom?(ok=false,'Elegí o escribí el insumo'):'';
+  g('f-cant-e').textContent=(!cant||cant<1)?(ok=false,'Cantidad inválida'):'';
+  g('f-fecha-e').textContent=!fecha?(ok=false,'Elegí una fecha'):'';
+  if(!ok)return;
+  var p={id:window.nextP++,insumo:nom,cantidad:cant,unidad:g('f-uni').value,urgencia:g('f-urg').value,fechaNec:fecha,obs:g('f-obs').value,estado:'Pendiente',creado:hoy()};
+  window.pedidos.unshift(p);window._savePedido(p);
+  limpiarForm();g('op-pedir-ok').innerHTML=av('v','<strong>Pedido registrado.</strong>');
+  setTimeout(function(){g('op-pedir-ok').innerHTML='';},3500);updBadge();
+}
+
+/* ── HISTORIAL ── */
+function renderHist(){
+  var bq=(g('h-bq')||{value:''}).value.toLowerCase(),est=(g('h-est')||{value:''}).value,urg=(g('h-urg')||{value:''}).value;
+  var fil=window.pedidos.filter(function(p){if(est&&p.estado!==est)return false;if(urg&&p.urgencia!==urg)return false;if(bq&&p.insumo.toLowerCase().indexOf(bq)===-1)return false;return true;});
+  if(!fil.length){g('op-hist-body').innerHTML=vacio('No hay pedidos');g('op-hist-foot').textContent='';return;}
+  var rows=fil.map(function(p){return '<tr class="clic" onclick="verDet('+p.id+')"><td><strong>'+p.insumo+'</strong></td><td style="white-space:nowrap">'+p.cantidad+' '+p.unidad+'</td><td>'+tag(p.urgencia)+'</td><td style="font-size:12px;color:var(--muted)">'+fd(p.creado)+'</td><td>'+tag(p.estado)+'</td><td onclick="event.stopPropagation()"><button class="btn b-ghost b-sm" style="color:var(--red)" onclick="elimPed('+p.id+')">✕</button></td></tr>';}).join('');
+  g('op-hist-body').innerHTML='<table><thead><tr><th>Insumo</th><th>Cant.</th><th>Urgencia</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  g('op-hist-foot').textContent=fil.length+' pedidos · Tocá para ver detalle';
+}
+function elimPed(id){if(!confirm('¿Borrar este pedido?'))return;window.pedidos=window.pedidos.filter(function(p){return p.id!==id;});window._deletePedido(id);renderHist();updBadge();}
+function verDet(id){
+  var p=window.pedidos.find(function(x){return x.id===id;});if(!p)return;
+  g('det-tit').textContent=p.insumo;
+  var rows=[['Cantidad',p.cantidad+' '+p.unidad],['Urgencia',tag(p.urgencia)],['Estado',tag(p.estado)],['Pedido el',fd(p.creado)],['Para',fd(p.fechaNec)]];
+  if(p.obs)rows.push(['Nota',p.obs]);
+  g('det-body').innerHTML=rows.map(function(r){return '<div class="det-row"><span class="det-l">'+r[0]+'</span><span class="det-v">'+r[1]+'</span></div>';}).join('');
+  abrirModal('m-det');
+}
+
+/* ── QUÉ COMPRAR ── */
+function renderComprar(){
+  var bajo=window.stock.filter(function(s){return s.qty<=s.min;});
+  var pend=window.pedidos.filter(function(p){return p.estado==='Pendiente';});
+  var html='';
+  if(!bajo.length&&!pend.length){html=av('v','<strong>No hay nada que comprar.</strong> Todo está en orden.');g('em-comprar-body').innerHTML=html;updBadge();return;}
+  if(bajo.length){
+    html+='<div class="section-label">Insumos que hay que reponer ('+bajo.length+')</div>';
+    html+='<div class="tbl-wrap" style="margin-bottom:20px"><table><thead><tr><th>Insumo</th><th>Hay ahora</th><th>Mínimo</th><th>Falta</th></tr></thead><tbody>';
+    bajo.forEach(function(s){var falta=Math.max(0,s.min-s.qty);html+='<tr><td><strong>'+s.nom+'</strong><br><span style="font-size:11px;color:var(--muted)">'+CATS[s.cat].e+' '+CATS[s.cat].n+'</span></td><td style="font-size:18px;font-weight:800;color:var(--red)">'+s.qty+'</td><td style="color:var(--muted)">'+s.min+'</td><td style="font-weight:700">'+falta+' '+s.uni+'</td></tr>';});
+    html+='</tbody></table></div>';
+  }
+  if(pend.length){
+    html+='<div class="section-label">Pedidos del operario ('+pend.length+')</div>';
+    pend.forEach(function(p){
+      html+='<div class="ped-card"><div class="ped-nombre">'+p.insumo+' '+tag(p.urgencia)+'</div>'+
+        '<div class="ped-dato"><strong>Cantidad:</strong> '+p.cantidad+' '+p.unidad+'<br><strong>Para el:</strong> '+fd(p.fechaNec)+(p.obs?'<br><strong>Nota:</strong> '+p.obs:'')+'</div>'+
+        '<div class="btn-row"><button class="btn b-green" onclick="aprobar('+p.id+')">✓ Ya lo compré</button><button class="btn b-ghost" onclick="rechazar('+p.id+')">✕ No se puede</button></div></div>';
+    });
+  }
+  g('em-comprar-body').innerHTML=html;updBadge();
+}
+function aprobar(id){var p=window.pedidos.find(function(x){return x.id===id;});if(p){p.estado='Aprobado';window._updatePedido(id,{estado:'Aprobado'});}renderComprar();}
+function rechazar(id){var p=window.pedidos.find(function(x){return x.id===id;});if(p){p.estado='Rechazado';window._updatePedido(id,{estado:'Rechazado'});}renderComprar();}
+
+/* ── STOCK EMPLEADOR ── */
+function renderStock(){
+  var bajo=window.stock.filter(function(s){return s.qty<=s.min;});
+  g('em-stock-alert').innerHTML=bajo.length?av('r','<strong>'+bajo.length+' insumo(s) bajo el mínimo</strong>'):'';
+  var grupos={};window.stock.forEach(function(s){if(!grupos[s.cat])grupos[s.cat]=[];grupos[s.cat].push(s);});
+  var html='';
+  Object.keys(CATS).forEach(function(cat){
+    var items=grupos[cat];if(!items||!items.length)return;
+    html+='<div class="cat-header"><span class="cat-emoji">'+CATS[cat].e+'</span><span class="cat-name">'+CATS[cat].n+'</span></div>';
+    items.forEach(function(s){var si=stInfo(s);html+='<div class="inv-item"><div class="inv-left"><div class="inv-nombre">'+s.nom+'</div><div class="inv-meta">mín: '+s.min+' '+s.uni+'</div></div><span class="inv-status '+si.cls+'">'+s.qty+' '+s.uni+'</span></div>';});
+  });
+  g('em-stock-body').innerHTML=html;
+}
+
+/* ── REPORTE ── */
+function renderReporte(){
+  var bajo=window.stock.filter(function(s){return s.qty<=s.min;});
+  var pend=window.pedidos.filter(function(p){return p.estado==='Pendiente';});
+  var apro=window.pedidos.filter(function(p){return p.estado==='Aprobado';}).length;
+  var crit=window.pedidos.filter(function(p){return p.urgencia==='critica'&&p.estado==='Pendiente';}).length;
+
+  g('rep-sub').textContent='Estado al '+fd(hoy())+' · '+window.stock.length+' insumos · '+window.pedidos.length+' pedidos en total';
+
+  var html='';
+
+  // Alertas
+  if(crit) html+=av('r','<strong>'+crit+' pedido(s) crítico(s) sin resolver.</strong> Requieren atención inmediata.');
+  if(bajo.length) html+=av('a','<strong>'+bajo.length+' insumo(s) por debajo del mínimo.</strong> Hay que reponer.');
+  if(!crit&&!bajo.length) html+=av('v','<strong>Todo en orden.</strong> No hay alertas activas.');
+
+  // KPIs
+  html+='<div class="rep-kpis">';
+  [{n:bajo.length,l:'Stock bajo',d:bajo.length>0},{n:pend.length,l:'Pedidos pendientes',d:pend.length>0},{n:apro,l:'Aprobados',d:false},{n:crit,l:'Críticos',d:crit>0}].forEach(function(k){
+    html+='<div class="rep-kpi"><div class="rep-kpi-n'+(k.d?' danger':'')+'">'+k.n+'</div><div class="rep-kpi-l">'+k.l+'</div></div>';
+  });
+  html+='</div>';
+
+  // Insumos a reponer
+  if(bajo.length){
+    html+='<div class="section-label">Insumos a reponer</div>';
+    html+='<div class="tbl-wrap" style="margin-bottom:20px"><table><thead><tr><th>Insumo</th><th>Hay</th><th>Mínimo</th><th>Falta</th></tr></thead><tbody>';
+    bajo.forEach(function(s){var falta=Math.max(0,s.min-s.qty);html+='<tr><td><strong>'+s.nom+'</strong><br><span style="font-size:11px;color:var(--muted)">'+CATS[s.cat].e+' '+CATS[s.cat].n+'</span></td><td style="font-weight:800;color:var(--red)">'+s.qty+' '+s.uni+'</td><td style="color:var(--muted)">'+s.min+'</td><td style="font-weight:700">'+falta+' '+s.uni+'</td></tr>';});
+    html+='</tbody></table></div>';
+  }
+
+  // Pedidos pendientes
+  if(pend.length){
+    html+='<div class="section-label">Pedidos sin resolver ('+pend.length+')</div>';
+    html+='<div class="tbl-wrap"><table><thead><tr><th>Insumo</th><th>Cant.</th><th>Urgencia</th><th>Para</th></tr></thead><tbody>';
+    pend.forEach(function(p){html+='<tr><td><strong>'+p.insumo+'</strong>'+(p.obs?'<br><span style="font-size:11px;color:var(--muted)">'+p.obs+'</span>':'')+'</td><td>'+p.cantidad+' '+p.unidad+'</td><td>'+tag(p.urgencia)+'</td><td style="font-size:12px">'+fd(p.fechaNec)+'</td></tr>';});
+    html+='</tbody></table></div>';
+  }
+
+  g('em-rep-body').innerHTML=html;
+}
+
+/* ── PDF ── */
+function exportarPDF(){
+  if(!window.jspdf){alert('jsPDF no cargó. Verificá tu conexión a internet.');return;}
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var W=doc.internal.pageSize.getWidth(), M=14, y=M;
+  var bajo=window.stock.filter(function(s){return s.qty<=s.min;});
+  var pend=window.pedidos.filter(function(p){return p.estado==='Pendiente';});
+  var apro=window.pedidos.filter(function(p){return p.estado==='Aprobado';}).length;
+  var crit=window.pedidos.filter(function(p){return p.urgencia==='critica'&&p.estado==='Pendiente';}).length;
+
+  // Header
+  doc.setFillColor(17,17,17);doc.roundedRect(M,y,W-M*2,22,3,3,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('REPORTE DE INSUMOS — GRUPO SAGUEL',M+6,y+9);
+  doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(150,150,150);
+  doc.text('Styropek · General Lagos · '+fd(hoy()),M+6,y+17);
+  y+=30;
+
+  // KPIs
+  var kpis=[{n:bajo.length,l:'Stock bajo',red:bajo.length>0},{n:pend.length,l:'Pedidos pend.',red:pend.length>0},{n:apro,l:'Aprobados',red:false},{n:crit,l:'Críticos',red:crit>0}];
+  var bw=(W-M*2-9)/4;
+  kpis.forEach(function(k,i){
+    var bx=M+i*(bw+3);
+    doc.setDrawColor(232,230,224);doc.setFillColor(245,244,240);doc.roundedRect(bx,y,bw,18,2,2,'FD');
+    doc.setTextColor(k.red&&k.n>0?208:17,k.red&&k.n>0?48:17,k.red&&k.n>0?48:17);
+    doc.setFontSize(19);doc.setFont('helvetica','bold');doc.text(String(k.n),bx+bw/2,y+11,{align:'center'});
+    doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(153,153,153);
+    doc.text(k.l.toUpperCase(),bx+bw/2,y+16,{align:'center'});
+  });
+  y+=26;
+
+  // Alertas texto
+  if(crit){doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(208,48,48);doc.text('⚠ '+crit+' pedido(s) crítico(s) sin resolver',M,y);y+=6;}
+  if(bajo.length){doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(184,112,0);doc.text('! '+bajo.length+' insumo(s) por debajo del mínimo',M,y);y+=8;}
+  else{y+=2;}
+  doc.setTextColor(17,17,17);
+
+  // Tabla insumos bajos
+  if(bajo.length){
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(153,153,153);doc.text('INSUMOS A REPONER',M,y);y+=4;
+    doc.autoTable({
+      startY:y,margin:{left:M,right:M},
+      head:[['Insumo','Categoría','Hay','Mínimo','Falta']],
+      body:bajo.map(function(s){return[s.nom,CATS[s.cat].n,s.qty+' '+s.uni,s.min,Math.max(0,s.min-s.qty)+' '+s.uni];}),
+      styles:{fontSize:8.5,cellPadding:2.8},
+      headStyles:{fillColor:[245,244,240],textColor:[153,153,153],fontStyle:'bold',fontSize:7},
+      alternateRowStyles:{fillColor:[252,252,252]},
+      columnStyles:{2:{textColor:[208,48,48],fontStyle:'bold'},4:{fontStyle:'bold'}},
+    });
+    y=doc.lastAutoTable.finalY+8;
+  }
+
+  // Tabla pedidos pendientes
+  if(pend.length){
+    if(y>230){doc.addPage();y=M;}
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(153,153,153);doc.text('PEDIDOS PENDIENTES',M,y);y+=4;
+    var urgTxt={normal:'Normal',alta:'Alta',critica:'CRÍTICA'};
+    doc.autoTable({
+      startY:y,margin:{left:M,right:M},
+      head:[['Insumo','Cantidad','Urgencia','Para']],
+      body:pend.map(function(p){return[p.insumo+(p.obs?' — '+p.obs:''),p.cantidad+' '+p.unidad,urgTxt[p.urgencia]||p.urgencia,fd(p.fechaNec)];}),
+      styles:{fontSize:8.5,cellPadding:2.8},
+      headStyles:{fillColor:[245,244,240],textColor:[153,153,153],fontStyle:'bold',fontSize:7},
+      alternateRowStyles:{fillColor:[252,252,252]},
+      didParseCell:function(d){if(d.section==='body'&&d.column.index===2&&d.cell.raw==='CRÍTICA')d.cell.styles.textColor=[208,48,48];}
+    });
+    y=doc.lastAutoTable.finalY+8;
+  }
+
+  // Stock completo
+  if(y>210){doc.addPage();y=M;}
+  doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(153,153,153);doc.text('STOCK COMPLETO',M,y);y+=4;
+  doc.autoTable({
+    startY:y,margin:{left:M,right:M},
+    head:[['Insumo','Categoría','Cantidad','Mínimo','Estado']],
+    body:window.stock.map(function(s){var si=stInfo(s);return[s.nom,CATS[s.cat].n,s.qty+' '+s.uni,s.min,si.txt];}),
+    styles:{fontSize:8,cellPadding:2.5},
+    headStyles:{fillColor:[245,244,240],textColor:[153,153,153],fontStyle:'bold',fontSize:7},
+    alternateRowStyles:{fillColor:[252,252,252]},
+    didParseCell:function(d){
+      if(d.section==='body'&&d.column.index===4){
+        var v=d.cell.raw;
+        if(v==='Sin stock'||v==='Bajo mínimo')d.cell.styles.textColor=[208,48,48];
+        else if(v==='Poco')d.cell.styles.textColor=[184,112,0];
+        else d.cell.styles.textColor=[26,110,53];
+      }
+    }
+  });
+
+  // Footer páginas
+  var pages=doc.internal.getNumberOfPages();
+  for(var i=1;i<=pages;i++){
+    doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(200,200,200);doc.setFont('helvetica','normal');
+    doc.text('Grupo SAGUEL · Styropek · '+fd(hoy()),M,292);
+    doc.text(i+'/'+pages,W-M,292,{align:'right'});
+  }
+  doc.save('reporte-saguel-'+hoy()+'.pdf');
+}
+
+function abrirModal(id){g(id).classList.add('on');}
+function cerrarModal(e,id){if(!e||e.target===e.currentTarget)g(id).classList.remove('on');}
+</script>
+</body>
+</html>
